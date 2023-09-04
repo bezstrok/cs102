@@ -1,12 +1,13 @@
 import dataclasses
-import math
 import time
 import typing as tp
 
 import requests
 
-from vkapi import config, session
+from vkapi import session
 from vkapi.exceptions import APIError
+
+from .constants import FRIENDS_GET_MUTUAL_CHUNK_LIMIT, REQUEST_DELAY
 
 QueryParams = tp.Optional[tp.Dict[str, tp.Union[str, int]]]
 
@@ -89,8 +90,6 @@ def get_mutual(
     :param progress: Callback для отображения прогресса.
     """
     progress = progress or (lambda arg: arg)
-    chunk_size: int = 100  # Users per a request
-    request_delay: float = 1 / 3  # VKApi delay
 
     params = {"source_uid": source_uid, "order": order, "count": count, "offset": offset}
 
@@ -103,8 +102,10 @@ def get_mutual(
     if target_uids:
         result: tp.List[MutualFriends] = []
 
-        for i in progress(range(0, len(target_uids), chunk_size)):
-            params["target_uids"] = ",".join(map(str, target_uids[i : i + chunk_size]))
+        for i in progress(range(0, len(target_uids), FRIENDS_GET_MUTUAL_CHUNK_LIMIT)):
+            params["target_uids"] = ",".join(
+                map(str, target_uids[i : i + FRIENDS_GET_MUTUAL_CHUNK_LIMIT])
+            )
             params["offset"] = i
             response = session.get("friends.getMutual", params=params)
 
@@ -119,7 +120,7 @@ def get_mutual(
                     )
                 )
 
-            time.sleep(request_delay)
+            time.sleep(REQUEST_DELAY)
 
         return result
 
