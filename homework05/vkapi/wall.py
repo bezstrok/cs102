@@ -10,6 +10,8 @@ from vkapi import config, session
 from vkapi.exceptions import APIError
 from vkapi.friends import assert_response_ok
 
+from .constants import POST_CODE_REQUESTS_LIMIT, REQUEST_DELAY, WALL_GET_COUNT_LIMIT
+
 
 def get_posts_2500(
     owner_id: str = "",
@@ -22,9 +24,7 @@ def get_posts_2500(
     *,
     timeout: float = 15.0,
 ) -> tp.Dict[str, tp.Any]:
-    posts_count_limit: int = 100
-    requests_limit: int = 25
-    count_limited: int = min(count, requests_limit * posts_count_limit)
+    count_limited: int = min(count, POST_CODE_REQUESTS_LIMIT * WALL_GET_COUNT_LIMIT)
 
     code: str = f"""
         var count = {count_limited};
@@ -44,8 +44,8 @@ def get_posts_2500(
                 }})
             );
 
-            offset = offset + {posts_count_limit};
-            count = count - {posts_count_limit};
+            offset = offset + {WALL_GET_COUNT_LIMIT};
+            count = count - {WALL_GET_COUNT_LIMIT};
         }}
 
         return response;"""
