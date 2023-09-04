@@ -1,10 +1,7 @@
-import textwrap
 import time
 import typing as tp
-from string import Template
 
 import pandas as pd
-from pandas import json_normalize
 
 from vkapi import config, session
 from vkapi.exceptions import APIError
@@ -76,7 +73,7 @@ def get_wall_execute(
     domain: str = "",
     offset: int = 0,
     count: int = 10,
-    max_count: int = 2500,
+    max_count: int = 1000,
     filter: str = "owner",
     extended: int = 0,
     fields: tp.Optional[tp.List[str]] = None,
@@ -97,4 +94,25 @@ def get_wall_execute(
     :param fields: Список дополнительных полей для профилей и сообществ, которые необходимо вернуть.
     :param progress: Callback для отображения прогресса.
     """
-    pass
+    progress = progress or (lambda arg: arg)
+    count = count or get_posts_2500(owner_id, domain, count=1)["count"]
+
+    result = []
+    for i in progress(range(0, count, max_count)):
+        result.append(
+            pd.json_normalize(
+                get_posts_2500(
+                    owner_id=owner_id,
+                    domain=domain,
+                    offset=offset + i,
+                    count=min(max_count, count),
+                    filter=filter,
+                    extended=extended,
+                    fields=fields,
+                )["items"]
+            )
+        )
+        count -= max_count
+        time.sleep(REQUEST_DELAY)
+
+    return pd.concat(result)
