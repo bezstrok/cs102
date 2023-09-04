@@ -8,6 +8,7 @@ from pandas import json_normalize
 
 from vkapi import config, session
 from vkapi.exceptions import APIError
+from vkapi.friends import assert_response_ok
 
 
 def get_posts_2500(
@@ -15,12 +16,55 @@ def get_posts_2500(
     domain: str = "",
     offset: int = 0,
     count: int = 10,
-    max_count: int = 2500,
     filter: str = "owner",
     extended: int = 0,
     fields: tp.Optional[tp.List[str]] = None,
+    *,
+    timeout: float = 15.0,
 ) -> tp.Dict[str, tp.Any]:
-    pass
+    posts_count_limit: int = 100
+    requests_limit: int = 25
+    count_limited: int = min(count, requests_limit * posts_count_limit)
+
+    code: str = f"""
+        var count = {count_limited};
+        var offset = {offset};
+        var response = [];
+
+        while(count > 0) {{
+            response.push(
+                API.wall.get({{
+                    "owner_id": "{owner_id}",
+                    "domain": "{domain}",
+                    "offset": offset,
+                    "count": count,
+                    "filter": "{filter}",
+                    "extended": "{extended}",
+                    "fields": "{fields}"
+                }})
+            );
+
+            offset = offset + {posts_count_limit};
+            count = count - {posts_count_limit};
+        }}
+
+        return response;"""
+
+    responses = session.post("execute", data={"code": code}, timeout=timeout)
+
+    assert_response_ok(responses)
+
+    responses_data = responses.json()["response"]
+    combined_responses_data: tp.Dict[str, tp.Dict[str, tp.Any]] = {"response": {}}
+
+    for response in responses_data:
+        for key, value in response.items():
+            if isinstance(value, list):
+                combined_responses_data["response"].setdefault(key, []).extend(value)
+            else:
+                combined_responses_data["response"].setdefault(key, value)
+
+    return combined_responses_data
 
 
 def get_wall_execute(
