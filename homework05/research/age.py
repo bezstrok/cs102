@@ -1,8 +1,6 @@
 import datetime as dt
 import statistics
 import typing as tp
-from pprint import pprint
-from time import perf_counter
 
 from vkapi.exceptions import APIError
 from vkapi.friends import get_friends
