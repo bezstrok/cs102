@@ -3,10 +3,27 @@ import math
 import time
 import typing as tp
 
+import requests
+
 from vkapi import config, session
 from vkapi.exceptions import APIError
 
 QueryParams = tp.Optional[tp.Dict[str, tp.Union[str, int]]]
+
+
+def assert_response_ok(response: requests.Response) -> None:
+    if response.status_code != 200:
+        raise APIError(
+            f"Unexpected status code: {response.status_code}. Response content: {response.text}"
+        )
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        raise APIError("Invalid JSON received from API.")
+
+    if "error" in response_data:
+        raise APIError(f"API Error: {response_data['error'].get('error_msg', 'Unknown error')}")
 
 
 @dataclasses.dataclass(frozen=True)
