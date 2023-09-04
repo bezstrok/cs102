@@ -2,7 +2,6 @@ import time
 import typing as tp
 
 import pandas as pd
-
 from vkapi import config, session
 from vkapi.exceptions import APIError
 from vkapi.friends import assert_response_ok

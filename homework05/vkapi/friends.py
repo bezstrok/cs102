@@ -3,7 +3,6 @@ import time
 import typing as tp
 
 import requests
-
 from vkapi import session
 from vkapi.exceptions import APIError
 
