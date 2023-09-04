@@ -45,28 +45,19 @@ def get_friends(
     :param fields: Список полей, которые нужно получить для каждого пользователя.
     :return: Список идентификаторов друзей пользователя или список пользователей.
     """
-    req = session.get(
+    response = session.get(
         "friends.get",
         params={
             "user_id": user_id,
             "count": count,
             "offset": offset,
-            "fields": ",".join(fields) if fields is not None else "",
+            "fields": ",".join(fields) if fields else None,
         },
     )
 
-    if req.status_code != 200:
-        raise APIError(f"Unexpected status code: {req.status_code}. Response content: {req.text}")
+    assert_response_ok(response)
 
-    response_data = req.json()
-
-    if "error" in response_data:
-        raise APIError(f"API Error: {response_data['error'].get('error_msg', 'Unknown error')}")
-
-    if "response" not in response_data or not all(
-        k in response_data["response"] for k in ("count", "items")
-    ):
-        raise APIError("Malformed response data")
+    response_data = response.json()
 
     return FriendsResponse(response_data["response"]["count"], response_data["response"]["items"])
 
