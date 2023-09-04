@@ -88,4 +88,39 @@ def get_mutual(
     :param offset: Смещение, необходимое для выборки определенного подмножества общих друзей.
     :param progress: Callback для отображения прогресса.
     """
-    pass
+    progress = progress or (lambda arg: arg)
+    chunk_size: int = 100  # Users per a request
+    request_delay: float = 1 / 3  # VKApi delay
+
+    params = {"source_uid": source_uid, "order": order, "count": count, "offset": offset}
+
+    if target_uid:
+        params["target_uid"] = target_uid
+        response = session.get("friends.getMutual", params=params)
+        assert_response_ok(response)
+        return response.json()["response"]
+
+    if target_uids:
+        result: tp.List[MutualFriends] = []
+
+        for i in progress(range(0, len(target_uids), chunk_size)):
+            params["target_uids"] = ",".join(map(str, target_uids[i : i + chunk_size]))
+            params["offset"] = i
+            response = session.get("friends.getMutual", params=params)
+
+            assert_response_ok(response)
+
+            for person in response.json()["response"]:
+                result.append(
+                    MutualFriends(
+                        id=person["id"],
+                        common_friends=person["common_friends"],
+                        common_count=person["common_count"],
+                    )
+                )
+
+            time.sleep(request_delay)
+
+        return result
+
+    raise APIError("Either target_uid or target_uids should be provided.")
