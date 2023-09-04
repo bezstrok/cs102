@@ -55,14 +55,18 @@ def get_posts_2500(
     assert_response_ok(responses)
 
     responses_data = responses.json()["response"]
-    combined_responses_data: tp.Dict[str, tp.Dict[str, tp.Any]] = {"response": {}}
+    combined_responses_data: tp.Dict[str, tp.Any] = {}
 
     for response in responses_data:
-        for key, value in response.items():
-            if isinstance(value, list):
-                combined_responses_data["response"].setdefault(key, []).extend(value)
-            else:
-                combined_responses_data["response"].setdefault(key, value)
+        if isinstance(response, dict):
+            for key, value in response.items():
+                if isinstance(value, list):
+                    combined_responses_data.setdefault(key, []).extend(value)
+                else:
+                    combined_responses_data.setdefault(key, value)
+
+    if not combined_responses_data:
+        raise APIError("Malformed response data")
 
     return combined_responses_data
 
