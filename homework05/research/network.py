@@ -1,12 +1,13 @@
 import typing as tp
 from collections import defaultdict
+from typing import cast
 
 import community as community_louvain
 import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 
-from vkapi.friends import get_friends, get_mutual
+from vkapi.friends import MutualFriends, get_friends, get_mutual
 
 
 def ego_network(
@@ -18,11 +19,12 @@ def ego_network(
     :param user_id: Идентификатор пользователя, для которого строится граф друзей.
     :param friends: Идентификаторы друзей, между которыми устанавливаются связи.
     """
-    mutual_friends = get_mutual(user_id, target_uids=friends)
+    if not friends and user_id:
+        friends = get_friends(user_id).items  # type: ignore
 
-    graph = [
-        (p["id"], f) for p in mutual_friends if isinstance(p, dict) for f in p["common_friends"]
-    ]
+    mutual_friends = cast(tp.List[MutualFriends], get_mutual(user_id, target_uids=friends))
+
+    graph = [(p["id"], f) for p in mutual_friends for f in p["common_friends"]]
 
     return graph
 
