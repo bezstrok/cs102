@@ -1,11 +1,13 @@
 import typing as tp
 from pprint import pprint
+from time import sleep
 from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
 
 BASE_URL: str = "https://news.ycombinator.com/"
+NewsData = tp.Dict[str, tp.Optional[tp.Union[str, int]]]
 
 
 def fetch_page_content(url: str) -> tp.Optional[str]:
@@ -18,10 +20,10 @@ def fetch_page_content(url: str) -> tp.Optional[str]:
         return None
 
 
-def extract_news(parser: BeautifulSoup) -> tp.List[tp.Dict[str, tp.Optional[tp.Union[str, int]]]]:
+def extract_news(
+    parser: BeautifulSoup,
+) -> tp.Generator[NewsData, None, None]:
     """Extract news from a given web page"""
-    news_list = []
-
     for athing in parser.find_all("tr", class_="athing"):
         subtext = athing.find_next("td", class_="subtext")
         title_data = athing.find_next("span", class_="titleline")
@@ -46,9 +48,8 @@ def extract_news(parser: BeautifulSoup) -> tp.List[tp.Dict[str, tp.Optional[tp.U
             "title": title,
             "url": url if url.startswith("http") else "https://news.ycombinator.com/" + url,
         }
-        news_list.append(news_data)
 
-    return news_list
+        yield news_data
 
 
 def extract_next_page(parser: BeautifulSoup) -> tp.Optional[str]:
@@ -59,18 +60,18 @@ def extract_next_page(parser: BeautifulSoup) -> tp.Optional[str]:
     return None
 
 
-def get_news(url: str, n_pages: int = 1) -> tp.List[tp.Dict[str, tp.Optional[tp.Union[str, int]]]]:
+def get_news(url: str, n_pages: int = 1) -> tp.Generator[NewsData, None, None]:
     """Collect news from a given web page"""
-    news = []
     for _ in range(n_pages):
         print(f"Collecting data from page: {url}")
+
         content = fetch_page_content(url)
         if not content:
             print(f"Failed to fetch content from {url}")
             break
 
         soup = BeautifulSoup(content, "html.parser")
-        news.extend(extract_news(soup))
+        yield from extract_news(soup)
 
         next_page_url = extract_next_page(soup)
         if not next_page_url:
@@ -78,4 +79,6 @@ def get_news(url: str, n_pages: int = 1) -> tp.List[tp.Dict[str, tp.Optional[tp.
 
         url = next_page_url
 
-    return news
+        sleep(1)
+
+    print("Parsing finished")
