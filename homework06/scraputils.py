@@ -7,6 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 BASE_URL: str = "https://news.ycombinator.com/"
+NEWEST_URL: str = urljoin(BASE_URL, "newest")
 NewsData = tp.Dict[str, tp.Optional[tp.Union[str, int]]]
 
 
