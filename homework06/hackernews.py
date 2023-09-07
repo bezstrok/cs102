@@ -52,7 +52,40 @@ def update_news():
 
 @route("/classify")
 def classify_news():
-    ...
+    model = BayesSetup(alpha=1.0)
+
+    with session() as s:
+        training_data = s.query(News).filter(News.label.isnot(None)).all()
+
+        if not training_data:
+            redirect("/news")
+
+        X_train = [news.title for news in training_data]
+        y_train = [news.label for news in training_data]
+        model.fit(X_train, y_train)
+
+        unclassified_data = s.query(News).filter_by(label=None).all()
+        X_predict = [news.title for news in unclassified_data]
+        predicted_labels = model.predict(X_predict)
+
+        label_order = {"good": 2, "maybe": 1, "never": 0}
+        sorted_news = [
+            {
+                "url": news.url,
+                "title": news.title,
+                "author": news.author,
+                "points": news.points,
+                "comments": news.comments,
+                "label": predicted_label,
+            }
+            for news, predicted_label in sorted(
+                zip(unclassified_data, predicted_labels),
+                key=lambda x: label_order[x[1]],
+                reverse=True,
+            )
+        ]
+
+        return template("personalized_news", rows=sorted_news)
 
 
 if __name__ == "__main__":
