@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 
-from bayes import NaiveBayesClassifier
+from bayes import BayesSetup
 
 
 def clean(s: str) -> str:
@@ -23,16 +23,14 @@ if __name__ == "__main__":
     for target, msg in data:
         X.append(msg)
         y.append(target)
-    X = [clean(x).lower() for x in X]
+    X = list(map(clean, X))
     # Study code
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=3900, shuffle=False)
 
     alpha: float = 0.05
 
-    my_model = Pipeline(
-        [("vectorizer", TfidfVectorizer()), ("classifier", NaiveBayesClassifier(alpha=alpha))]
-    )
+    my_model = BayesSetup(alpha=alpha)
     sklearn_model = Pipeline(
         [("vectorizer", TfidfVectorizer()), ("classifier", MultinomialNB(alpha=alpha))]
     )
