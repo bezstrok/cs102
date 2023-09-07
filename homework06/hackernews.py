@@ -1,6 +1,5 @@
-from bottle import redirect, request, route, run, template
-
 from bayes import BayesSetup
+from bottle import redirect, request, route, run, template
 from db import News, session
 from scraputils import NEWEST_URL, get_news
 
