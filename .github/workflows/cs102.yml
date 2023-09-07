@@ -29,6 +29,8 @@ jobs:
         black -l 100 --check --diff --color --exclude "test*" ${{ github.head_ref }}
     - name: Run mypy
       run: |
+        mypy --ignore-missing-imports ${{ github.head_ref }} || true
+        mypy --install-types --non-interactive
         mypy --ignore-missing-imports ${{ github.head_ref }}
     - name: Run pylint
       run: |
