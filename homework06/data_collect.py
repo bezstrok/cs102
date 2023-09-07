@@ -16,18 +16,7 @@ if __name__ == "__main__":
 
     news_generator = get_news(args.url, args.pages)
 
-    s = session()
-
-    for news_item in news_generator:
-        s.add(
-            News(
-                title=news_item["title"],
-                author=news_item["author"],
-                url=news_item["url"],
-                comments=news_item["comments"],
-                points=news_item["points"],
-            )
-        )
-
-    s.commit()
-    s.close()
+    with session() as s:
+        for news_item in news_generator:
+            s.add(News(**news_item))
+            s.commit()
