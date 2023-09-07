@@ -1,8 +1,15 @@
 import math
+import string
 import typing as tp
 from collections import Counter, defaultdict
 
 from scipy.sparse import csr_matrix
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+
+def clean(s: str) -> str:
+    translator = str.maketrans("", "", string.punctuation)
+    return s.translate(translator).lower()
 
 
 class NaiveBayesClassifier:
@@ -56,3 +63,22 @@ class NaiveBayesClassifier:
     def score(self, x_test: csr_matrix, y_test: tp.List[str]) -> float:
         predictions = self.predict(x_test)
         return sum(p == y for p, y in zip(predictions, y_test)) / len(y_test)
+
+
+class BayesSetup:
+    def __init__(self, alpha: float, text_cleaner: tp.Callable = clean):
+        self.vectorizer = TfidfVectorizer()
+        self.classifier = NaiveBayesClassifier(alpha=alpha)
+        self.text_cleaner = text_cleaner
+
+    def fit(self, x: tp.List[str], y: tp.List[str]) -> None:
+        x_transformed = self.vectorizer.fit_transform(map(clean, x))
+        self.classifier.fit(x_transformed, y)
+
+    def predict(self, x: tp.List[str]) -> tp.List[str]:
+        x_transformed = self.vectorizer.transform(map(clean, x))
+        return self.classifier.predict(x_transformed)
+
+    def score(self, x_test: tp.List[str], y_test: tp.List[str]) -> float:
+        x_transformed = self.vectorizer.transform(map(clean, x_test))
+        return self.classifier.score(x_transformed, y_test)
