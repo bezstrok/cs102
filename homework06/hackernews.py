@@ -1,16 +1,15 @@
 from bottle import redirect, request, route, run, template
 
-from bayes import NaiveBayesClassifier
+from bayes import BayesSetup
 from db import News, session
-from dbutils import session_scope
 from scraputils import NEWEST_URL, get_news
 
 
 @route("/")
 @route("/news")
 def news_list():
-    with session_scope() as s:
-        rows = s.query(News).filter(News.label == None).all()
+    with session() as s:
+        rows = s.query(News).filter_by(label=None).all()
         return template("news_template", rows=rows)
 
 
@@ -23,9 +22,10 @@ def add_label():
         redirect("/news")
         return
 
-    with session_scope() as s:
+    with session() as s:
         news_item = s.query(News).filter_by(id=news_id).one()
         news_item.label = label_value
+        s.commit()
 
     redirect("/news")
 
@@ -35,7 +35,7 @@ def update_news():
     new_news_generator = get_news(NEWEST_URL, 1)
 
     for news_item in new_news_generator:
-        with session_scope() as s:
+        with session() as s:
             is_exist = bool(
                 s.query(News)
                 .filter_by(title=news_item["title"], author=news_item["author"])
@@ -43,14 +43,9 @@ def update_news():
             )
 
             if not is_exist:
-                new_news = News(
-                    title=news_item["title"],
-                    author=news_item["author"],
-                    url=news_item["url"],
-                    comments=news_item["comments"],
-                    points=news_item["points"],
-                )
+                new_news = News(**news_item)
                 s.add(new_news)
+                s.commit()
 
     redirect("/news")
 
