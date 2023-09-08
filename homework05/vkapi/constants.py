@@ -1,0 +1,9 @@
+import typing as tp
+
+WALL_GET_COUNT_LIMIT: int = 100
+
+FRIENDS_GET_MUTUAL_CHUNK_LIMIT: int = 100
+
+POST_CODE_REQUESTS_LIMIT: int = 25
+
+REQUEST_DELAY = 1 / 3

@@ -1,12 +1,29 @@
 import dataclasses
-import math
 import time
 import typing as tp
 
-from vkapi import config, session
+import requests
+from vkapi import session
 from vkapi.exceptions import APIError
 
+from .constants import FRIENDS_GET_MUTUAL_CHUNK_LIMIT, REQUEST_DELAY
+
 QueryParams = tp.Optional[tp.Dict[str, tp.Union[str, int]]]
+
+
+def assert_response_ok(response: requests.Response) -> None:
+    if response.status_code != 200:
+        raise APIError(
+            f"Unexpected status code: {response.status_code}. Response content: {response.text}"
+        )
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        raise APIError("Invalid JSON received from API.")
+
+    if "error" in response_data:
+        raise APIError(f"API Error: {response_data['error'].get('error_msg', 'Unknown error')}")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -28,7 +45,21 @@ def get_friends(
     :param fields: Список полей, которые нужно получить для каждого пользователя.
     :return: Список идентификаторов друзей пользователя или список пользователей.
     """
-    pass
+    response = session.get(
+        "friends.get",
+        params={
+            "user_id": user_id,
+            "count": count,
+            "offset": offset,
+            "fields": ",".join(fields) if fields else None,
+        },
+    )
+
+    assert_response_ok(response)
+
+    response_data = response.json()
+
+    return FriendsResponse(response_data["response"]["count"], response_data["response"]["items"])
 
 
 class MutualFriends(tp.TypedDict):
@@ -57,4 +88,39 @@ def get_mutual(
     :param offset: Смещение, необходимое для выборки определенного подмножества общих друзей.
     :param progress: Callback для отображения прогресса.
     """
-    pass
+    progress = progress or (lambda arg: arg)
+
+    params = {"source_uid": source_uid, "order": order, "count": count, "offset": offset}
+
+    if target_uid:
+        params["target_uid"] = target_uid
+        response = session.get("friends.getMutual", params=params)
+        assert_response_ok(response)
+        return response.json()["response"]
+
+    if target_uids:
+        result: tp.List[MutualFriends] = []
+
+        for i in progress(range(0, len(target_uids), FRIENDS_GET_MUTUAL_CHUNK_LIMIT)):
+            params["target_uids"] = ",".join(
+                map(str, target_uids[i : i + FRIENDS_GET_MUTUAL_CHUNK_LIMIT])
+            )
+            params["offset"] = i
+            response = session.get("friends.getMutual", params=params)
+
+            assert_response_ok(response)
+
+            for person in response.json()["response"]:
+                result.append(
+                    MutualFriends(
+                        id=person["id"],
+                        common_friends=person["common_friends"],
+                        common_count=person["common_count"],
+                    )
+                )
+
+            time.sleep(REQUEST_DELAY)
+
+        return result
+
+    raise APIError("Either target_uid or target_uids should be provided.")
