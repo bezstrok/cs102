@@ -1,32 +1,85 @@
+import typing as tp
+from pprint import pprint
+from time import sleep
+from urllib.parse import urljoin
+
 import requests
 from bs4 import BeautifulSoup
 
-
-def extract_news(parser):
-    """ Extract news from a given web page """
-    news_list = []
-
-    # PUT YOUR CODE HERE
-
-    return news_list
+BASE_URL: str = "https://news.ycombinator.com/"
+NEWEST_URL: str = urljoin(BASE_URL, "newest")
+NewsData = tp.Dict[str, tp.Optional[tp.Union[str, int]]]
 
 
-def extract_next_page(parser):
-    """ Extract next page URL """
-    # PUT YOUR CODE HERE
-
-
-def get_news(url, n_pages=1):
-    """ Collect news from a given web page """
-    news = []
-    while n_pages:
-        print("Collecting data from page: {}".format(url))
+def fetch_page_content(url: str) -> tp.Optional[str]:
+    """Fetches the page content for a given URL."""
+    try:
         response = requests.get(url)
-        soup = BeautifulSoup(response.text, "html.parser")
-        news_list = extract_news(soup)
-        next_page = extract_next_page(soup)
-        url = "https://news.ycombinator.com/" + next_page
-        news.extend(news_list)
-        n_pages -= 1
-    return news
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException:
+        return None
 
+
+def extract_news(
+    parser: BeautifulSoup,
+) -> tp.Generator[NewsData, None, None]:
+    """Extract news from a given web page"""
+    for athing in parser.find_all("tr", class_="athing"):
+        subtext = athing.find_next("td", class_="subtext")
+        title_data = athing.find_next("span", class_="titleline")
+
+        if not subtext or not title_data or not title_data.a:
+            continue
+
+        hnuser = subtext.find("a", class_="hnuser")
+        score = subtext.find("span", class_="score")
+        all_links = subtext.find_all("a")
+
+        author = hnuser.text if hnuser else None
+        comments = all_links[-1].text.split()[0] if all_links else None
+        points = score.text.split()[0] if score else None
+        title = title_data.a.text
+        url = title_data.a["href"]
+
+        news_data = {
+            "author": author,
+            "comments": int(comments) if comments and comments.isdigit() else None,
+            "points": int(points) if points and points.isdigit() else None,
+            "title": title,
+            "url": url if url.startswith("http") else "https://news.ycombinator.com/" + url,
+        }
+
+        yield news_data
+
+
+def extract_next_page(parser: BeautifulSoup) -> tp.Optional[str]:
+    """Fetches the URL of the next page."""
+    next_link = parser.find("a", class_="morelink")
+    if next_link and "href" in next_link.attrs:
+        return urljoin(BASE_URL, next_link["href"])
+    return None
+
+
+def get_news(url: str, n_pages: int = 1) -> tp.Generator[NewsData, None, None]:
+    """Collect news from a given web page"""
+    for _ in range(n_pages):
+        print(f"Collecting data from page: {url}")
+
+        content = fetch_page_content(url)
+        if not content:
+            print(f"Failed to fetch content from {url}")
+            break
+
+        soup = BeautifulSoup(content, "html.parser")
+        yield from extract_news(soup)
+
+        next_page_url = extract_next_page(soup)
+        if not next_page_url:
+            break
+
+        url = next_page_url
+
+        sleep(1)
+
+    print("Parsing finished")
